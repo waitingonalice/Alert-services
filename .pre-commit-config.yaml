@@ -1,0 +1,46 @@
+exclude: "^docs/|/migrations/|/test|devcontainer.json"
+default_stages: [pre-commit]
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-xml
+      - id: check-yaml
+      - id: debug-statements
+      - id: check-builtin-literals
+      - id: check-case-conflict
+      - id: check-docstring-first
+      - id: detect-private-key
+
+  # Run the Ruff linter.
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.4.9
+    hooks:
+      # Linter
+      - id: ruff
+        # TRY003 - https://docs.astral.sh/ruff/rules/raise-vanilla-args/
+        # EM102 - https://docs.astral.sh/ruff/rules/f-string-in-exception/
+        # EM101 - https://docs.astral.sh/ruff/rules/raw-string-in-exception/
+        # COM812 - https://docs.astral.sh/ruff/rules/missing-trailing-comma/
+        # ISC001 - https://docs.astral.sh/ruff/rules/single-line-implicit-string-concatenation/
+        # FBT002 - https://docs.astral.sh/ruff/rules/boolean-default-value-positional-argument/
+        # ARG001 - https://docs.astral.sh/ruff/rules/unused-function-argument/
+        args:
+          [
+            --fix,
+            --exit-non-zero-on-fix,
+            --ignore,
+            "TRY003,EM102,EM101,COM812,ISC001,FBT002,ARG001",
+          ]
+      # Formatter
+      - id: ruff-format
+
+  - repo: local
+    hooks:
+      - id: lint
+        name: typescript lint
+        entry: bash -c "cd ./frontend && yarn tsc --noEmit --skipLibCheck"
+        language: node
