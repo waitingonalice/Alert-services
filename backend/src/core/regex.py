@@ -1,0 +1,1 @@
+TWENTY_FOUR_HOUR_TIME_REGEX = r"^(?:[01][0-9]|2[0-3]):[0-5][0-9]$"
