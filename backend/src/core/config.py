@@ -19,7 +19,7 @@ class PostgresSettings:
     POSTGRES_PASSWORD: str = os.getenv("POSTGRES_PASSWORD", "")
     POSTGRES_HOST: str = (
         os.getenv("POSTGRES_HOST", "localhost")
-        if os.getenv("BUILD_END")
+        if os.getenv("BUILD_ENV")
         else "localhost"  # For database migration outside of docker
     )
     POSTGRES_PORT: int = int(os.getenv("POSTGRES_PORT", 5432))

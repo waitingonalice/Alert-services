@@ -8,6 +8,7 @@ from src.microservices.bot.services.telegram import (
     WeatherConversationDirector,
 )
 from src.core.config import settings
+from src.core.sql import async_session
 
 
 application = Application.builder().token(settings.TELEGRAM_BOT_TOKEN).build()
@@ -17,6 +18,8 @@ max_retry_count = 5
 
 def main(count: int):
     try:
+        # TODO: Redis init and integration for caching user data
+        async_session()
         conversation_builder = WeatherConversationBuilder(application=application)
         conversation_director = WeatherConversationDirector(
             builder=conversation_builder,
@@ -24,7 +27,7 @@ def main(count: int):
         )
         conversation_director.construct_conversation()
         print("Bot Service - Bot is running...")
-        application.run_polling(allowed_updates=Update.ALL_TYPES)
+        application.run_polling(allowed_updates=Update.ALL_TYPES, close_loop=False)
     except Exception as e:
         print(f"Bot Service - Error: {e}")
         print(f"Bot Service - Retry count: {count}.", "Retrying in 10 seconds...")

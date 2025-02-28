@@ -7,7 +7,6 @@ from enum import Enum
 class TelegramWeatherCommandsEnum(Enum):
     START = "start"
     SUBSCRIBE = "subscribe"
-    WEATHER = "weather"
     CONFIGURE = "configure"
     UNSUBSCRIBE = "unsubscribe"
 

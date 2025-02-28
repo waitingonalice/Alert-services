@@ -73,7 +73,6 @@ class WeatherConversationBuilder(BaseConversationBuilder):
     async def __set_commands(self):
         command_description_map = {
             TelegramWeatherCommandsEnum.START: "Get a welcome message and a list of usable commands",
-            TelegramWeatherCommandsEnum.WEATHER: "Check forecasted weather conditions",
             TelegramWeatherCommandsEnum.CONFIGURE: "Start a conversation to configure notification settings",
             TelegramWeatherCommandsEnum.SUBSCRIBE: "Resubscribe to weather alerts",
             TelegramWeatherCommandsEnum.UNSUBSCRIBE: "Unsubscribe from weather alerts",
@@ -146,7 +145,6 @@ class WeatherConversationBuilder(BaseConversationBuilder):
 I will notify you when the skies are being unfriendly.
         \nWeather updates will be sent at 7am everyday.
         \nTo configure notification settings, send the /configure command.
-        \nTo get forecasted weather conditions, send the /weather command.
         \nTo stop receiving weather updates, send the /unsubscribe command.
         \nTo resubscribe to weather updates, send the /subscribe command.
         """
@@ -211,6 +209,7 @@ I will notify you when the skies are being unfriendly.
         """
         )
 
+    ########### Configure Notifications Conversation ###########
     async def configure_notifications(
         self, update: Update, _: ContextTypes.DEFAULT_TYPE
     ) -> TelegramWeatherConfigStatesEnum:
