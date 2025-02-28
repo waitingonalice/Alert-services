@@ -28,7 +28,6 @@ jobs:
 
       - name: Install dependencies and run linters
         run: |
-          yarn --cwd ./frontend
           pip install pre-commit
           pre-commit install
           pre-commit run
