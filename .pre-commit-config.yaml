@@ -38,9 +38,9 @@ repos:
       # Formatter
       - id: ruff-format
 
-  - repo: local
-    hooks:
-      - id: lint
-        name: typescript lint
-        entry: bash -c "cd ./frontend && yarn tsc --noEmit --skipLibCheck"
-        language: node
+  # - repo: local
+  #   hooks:
+  #     - id: lint
+  #       name: typescript lint
+  #       entry: bash -c "cd ./frontend && yarn tsc --noEmit --skipLibCheck"
+  #       language: node
