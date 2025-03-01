@@ -1,8 +1,6 @@
 import datetime
 import re
-from abc import ABC, abstractmethod
 from telegram import (
-    Bot,
     ReplyKeyboardMarkup,
     ReplyKeyboardRemove,
     Update,
@@ -19,40 +17,13 @@ from telegram.ext import (
 )
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.core.sql import async_transaction
-from src.core.depends import Depends
 from src.core.regex import TWENTY_FOUR_HOUR_TIME_REGEX
-from src.repository.telegram import TelegramRepository
-from src.repository.preferences import PreferencesRepository
 from src.schemas.telegram import (
     TelegramWeatherCommandsEnum,
     TelegramWeatherConfigEnum,
     TelegramWeatherConfigStatesEnum,
 )
-
-
-class BaseConversationBuilder(ABC):
-    def __init__(
-        self,
-        application: Application,
-        telegram_repo: TelegramRepository = Depends(TelegramRepository),
-        preferences_repo: PreferencesRepository = Depends(PreferencesRepository),
-    ):
-        self.telegram_repo = telegram_repo
-        self.preferences_repo = preferences_repo
-        self.application = application
-        self.bot: Bot = self.application.bot
-
-    @abstractmethod
-    def track_users(self, update: Update, _: ContextTypes.DEFAULT_TYPE):
-        pass
-
-    @abstractmethod
-    def start_conversation(self, update: Update, _: ContextTypes.DEFAULT_TYPE):
-        pass
-
-    @abstractmethod
-    def unsubscribe(self, update: Update, _: ContextTypes.DEFAULT_TYPE):
-        pass
+from ..utils.builder import BaseConversationBuilder
 
 
 class WeatherConversationBuilder(BaseConversationBuilder):
@@ -86,7 +57,7 @@ class WeatherConversationBuilder(BaseConversationBuilder):
         ]
         await self.bot.set_my_commands(commands)
 
-    async def __end_convo(
+    async def __end_conversation(
         self,
         update: Update,
         context: ContextTypes.DEFAULT_TYPE,
@@ -152,25 +123,25 @@ I will notify you when the skies are being unfriendly.
 
     async def unsubscribe(self, update: Update, _: ContextTypes.DEFAULT_TYPE):
         if not update.message or not update.message.from_user:
-            return ConversationHandler.END
+            return
 
         user = await self.telegram_repo.get_telegram_user(
             str(update.message.from_user.id),
         )
         if not user or not user.updated_at:
-            return ConversationHandler.END
+            return
 
         days_left = (datetime.date.today() - user.updated_at.date()).days - 30
         if user.is_deleted:
             await update.message.reply_html(
                 f"""
                 What are you doing? You have already unsubscribed from receiving Singapore Weather Bot updates.
-                \nShould you change your mind because you are indecisive 🙄, you can always resubscribe by using the /subscribe command.
+                \nShould you change your mind because you are indecisive, you can always resubscribe by using the /subscribe command.
                 \nYou have <strong>{abs(days_left)}</strong> days left to resubscribe before your data is permanently deleted.
                 \nI hope you do not have a great day ahead 🙄
                 """
             )
-            return ConversationHandler.END
+            return
         await self.telegram_repo.soft_delete_telegram_user(
             str(update.message.from_user.id),
             str(update.message.chat_id),
@@ -179,7 +150,7 @@ I will notify you when the skies are being unfriendly.
             """
           You have successfully unsubscribed from receiving Singapore Weather Bot updates.
           \nYou have <strong>30</strong> days left to resubscribe before your data is permanently deleted. You can always resubscribe by using the /subscribe command.
-          \nI hope you do not have a great day ahead 🙄
+          \nI hope you do not have a great day ahead.
           """
         )
 
@@ -204,7 +175,7 @@ I will notify you when the skies are being unfriendly.
         )
         await update.message.reply_text(
             """
-        Welcome back, I knew you will be back 🙄. You have successfully resubscribed to Singapore Weather Bot updates.
+        Welcome back, I knew you will be back. You have successfully resubscribed to Singapore Weather Bot updates.
         \nIn case you have forgotten the available commands you can view them by using the /start command.
         """
         )
@@ -242,9 +213,17 @@ I will notify you when the skies are being unfriendly.
             TelegramWeatherConfigStatesEnum.END_CONVERSATION.value
             == update.message.text
         ):
-            return await self.__end_convo(update, context)
+            return await self.__end_conversation(update, context)
 
         selected_option = update.message.text
+        if selected_option not in [
+            option.value for option in TelegramWeatherConfigEnum
+        ]:
+            await update.message.reply_text(
+                "What is this gibberish? Please select a valid option.",
+            )
+            return TelegramWeatherConfigStatesEnum.SELECTING_NOTIFICATION_OPTION
+
         selected_option_instruction_map = {
             TelegramWeatherConfigEnum.ALERT_START_TIME.value: """
             Please specify the start time you would like to start receiving alerts.
@@ -259,7 +238,8 @@ I will notify you when the skies are being unfriendly.
         }
         keyboard = [self.end_convo_keyboard]
 
-        context.user_data["selected_option"] = selected_option
+        if context.user_data is not None:
+            context.user_data["selected_option"] = selected_option
 
         await update.message.reply_html(
             selected_option_instruction_map[selected_option],
@@ -282,7 +262,7 @@ I will notify you when the skies are being unfriendly.
             TelegramWeatherConfigStatesEnum.END_CONVERSATION.value
             == update.message.text
         ):
-            return await self.__end_convo(update, context)
+            return await self.__end_conversation(update, context)
 
         user_input = update.message.text
         validate_time_input = re.match(
@@ -316,7 +296,7 @@ I will notify you when the skies are being unfriendly.
             **params,
         )
 
-        return await self.__end_convo(
+        return await self.__end_conversation(
             update,
             context,
             message=f"""{selected_option} - updated to {user_input}.
@@ -326,11 +306,31 @@ I will notify you when the skies are being unfriendly.
     async def fallback_conversation(
         self, update: Update, context: ContextTypes.DEFAULT_TYPE
     ) -> int:
-        return await self.__end_convo(
+        return await self.__end_conversation(
             update,
             context,
-            message="I am sorry, I did not understand that. Please try again.",
+            message="I am sorry, there was an error processing your request, ending conversation.",
         )
+
+    ########### End of Configure Notifications Conversation ###########
+
+    def __get_weather_update(self):
+        """
+        Method to get weather updates from the weather API.
+        """
+        pass
+
+    async def send_weather_update(self):
+        """
+        Method to send push notification to singular subscribed user on request.
+        """
+        pass
+
+    async def send_weather_update_to_users(self):
+        """
+        Method to send push notification to all users subscribed to weather updates.
+        """
+        pass
 
 
 class WeatherConversationDirector:
@@ -342,8 +342,8 @@ class WeatherConversationDirector:
         self.application = application
         self.builder = builder
 
-    def __add_notif_config_conversation_handler(self):
-        conversation_handler = ConversationHandler(
+    def __config_conversation_handler(self) -> ConversationHandler:
+        return ConversationHandler(
             entry_points=[
                 CommandHandler(
                     TelegramWeatherCommandsEnum.CONFIGURE.value,
@@ -377,7 +377,6 @@ class WeatherConversationDirector:
                 )
             ],
         )
-        self.application.add_handler(conversation_handler)
 
     def construct_conversation(self):
         # run track_users in its own group to not interfere with the user handlers
@@ -407,5 +406,6 @@ class WeatherConversationDirector:
                 self.builder.subscribe,
             )
         )
-
-        self.__add_notif_config_conversation_handler()
+        self.application.add_handler(
+            self.__config_conversation_handler(),
+        )

@@ -20,11 +20,11 @@ services:
   #     - postgres
   #     - redis
 
-  bot_service:
-    container_name: bot_service
+  weather_bot:
+    container_name: weather_bot
     build:
       context: .
-      dockerfile: ./backend/docker/local/bot/Dockerfile
+      dockerfile: ./backend/docker/local/weather_bot/Dockerfile
     volumes:
       - ./backend:/app
     env_file:

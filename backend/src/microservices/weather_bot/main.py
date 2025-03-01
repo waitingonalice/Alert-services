@@ -3,7 +3,7 @@ from telegram import Update
 from telegram.ext import (
     Application,
 )
-from src.microservices.bot.services.telegram import (
+from .services.telegram import (
     WeatherConversationBuilder,
     WeatherConversationDirector,
 )

@@ -1,6 +1,6 @@
 FROM python:3.12.4-slim-bookworm as base
 
-ARG APP_SERVICE=bot
+ARG APP_SERVICE=weather_bot
 ARG BUILD_ENV=local
 ARG APP_DIR=/app
 ENV BUILD_ENV ${BUILD_ENV}
@@ -19,11 +19,14 @@ FROM base as build-stage
 COPY ./backend/requirements ${APP_DIR}/requirements
 
 FROM base as run-stage
+# Python buffered output to stdout
+ENV PYTHONUNBUFFERED 1
+ENV PYTHONDONTWRITEBYTECODE 1
 
 COPY --from=build-stage ${APP_DIR}/requirements ${APP_DIR}/requirements
 RUN pip install --no-cache-dir -r ${APP_DIR}/requirements/${APP_SERVICE}.txt
 
-COPY ./backend/docker/${BUILD_ENV}/bot/entrypoint /entrypoint
+COPY ./backend/docker/${BUILD_ENV}/${APP_SERVICE}/entrypoint /entrypoint
 RUN chmod +x /entrypoint
 
 COPY ./backend/src ${APP_DIR}/src

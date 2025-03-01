@@ -1,12 +1,15 @@
 from typing import Callable
 from apscheduler.schedulers.background import BackgroundScheduler
 
+from .depends import Depends
+
 
 class Scheduler:
     def __init__(
         self,
+        scheduler: BackgroundScheduler = Depends(BackgroundScheduler),
     ):
-        self.scheduler = BackgroundScheduler()
+        self.scheduler = scheduler
 
     def add_job(
         self,
