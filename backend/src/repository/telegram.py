@@ -1,10 +1,17 @@
 import datetime
-from sqlalchemy import text, select
+from typing import List
+from sqlalchemy import text, select, and_
 from sqlalchemy.ext.asyncio import AsyncSession
-from ..core.sql import async_transaction, async_session
-from ..schemas.telegram import TelegramRepositorySchema
-from ..models.telegram import Telegram as TelegramDAO
-from ..core.depends import Depends
+
+from src.core.sql import async_transaction, async_session
+from src.schemas.preferences import PreferencesRepositorySchema
+from src.schemas.telegram import (
+    TelegramRepositorySchema,
+    TelegramPreferenceRepositorySchema,
+)
+from src.models.telegram import Telegram as TelegramDAO
+from src.models.preferences import Preferences as PreferencesDAO
+from src.core.depends import Depends
 
 
 class TelegramRepository:
@@ -22,6 +29,20 @@ class TelegramRepository:
             last_name=dao.last_name,
         )
 
+    def __telegram_preference_dao_to_dto(
+        self,
+        user_dao: TelegramDAO,
+        preference_dao: PreferencesDAO,
+    ):
+        return TelegramPreferenceRepositorySchema(
+            telegram=self.__dao_to_dto(user_dao),
+            preference=PreferencesRepositorySchema(
+                id=preference_dao.id,
+                alert_start_time=preference_dao.alert_start_time,
+                alert_end_time=preference_dao.alert_end_time,
+            ),
+        )
+
     async def get_telegram_user(self, user_id: str) -> TelegramRepositorySchema | None:
         user_data = await self.session.execute(
             select(TelegramDAO).where(TelegramDAO.user_id == user_id)
@@ -30,6 +51,39 @@ class TelegramRepository:
         if not user:
             return None
         return self.__dao_to_dto(user)
+
+    @async_transaction
+    async def list_subscribed_users_within_timeframe(
+        self,
+        session: AsyncSession,
+    ) -> List[TelegramPreferenceRepositorySchema]:
+        # transaction is required here to explicity execute join statement
+        now = datetime.datetime.now().time()
+        data = await session.execute(
+            select(
+                TelegramDAO,
+                PreferencesDAO,
+            )
+            .join_from(
+                from_=TelegramDAO,
+                target=PreferencesDAO,
+                onclause=TelegramDAO.user_id == PreferencesDAO.id,
+            )
+            .where(
+                and_(
+                    TelegramDAO.is_deleted == False,  # noqa: E712
+                    now >= PreferencesDAO.alert_start_time,
+                    now <= PreferencesDAO.alert_end_time,
+                )
+            )
+        )
+        return [
+            self.__telegram_preference_dao_to_dto(
+                telegram,
+                preference,
+            )
+            for telegram, preference in data.tuples().all()
+        ]
 
     async def upsert_telegram_user(
         self,
@@ -62,40 +116,19 @@ class TelegramRepository:
     @async_transaction
     async def update_is_deleted_user(
         self,
-        is_deleted: bool,
-        user_id: str,
-        session: AsyncSession,
-    ):
-        statement = """
-            UPDATE telegram SET is_deleted = :is_deleted
-            WHERE user_id = :user_id
-        """
-        params = {
-            "is_deleted": is_deleted,
-            "user_id": user_id,
-        }
-        await session.execute(
-            text(statement),
-            params,
-        )
-
-    @async_transaction
-    async def soft_delete_telegram_user(
-        self,
         user_id: str,
         chat_id: str,
+        is_deleted: bool,
         session: AsyncSession,
     ):
         statement = """
-            UPDATE telegram SET is_deleted = :is_deleted
+            UPDATE telegram SET is_deleted = :is_deleted, updated_at = CURRENT_TIMESTAMP
             WHERE user_id = :user_id AND chat_id = :chat_id
-            AND is_deleted = FALSE
         """
-
         params = TelegramRepositorySchema(
             user_id=user_id,
             chat_id=chat_id,
-            is_deleted=True,
+            is_deleted=is_deleted,
         ).model_dump(exclude=["updated_at"])
 
         await session.execute(

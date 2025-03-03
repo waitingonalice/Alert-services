@@ -3,6 +3,8 @@ from typing import Optional
 from pydantic import BaseModel
 from enum import Enum
 
+from .preferences import PreferencesRepositorySchema
+
 
 class TelegramWeatherCommandsEnum(Enum):
     START = "start"
@@ -16,7 +18,7 @@ class TelegramWeatherConfigEnum(Enum):
     ALERT_END_TIME = "End time of alerts"
 
 
-class TelegramWeatherConfigStatesEnum(Enum):
+class TelegramWeatherConversationStatesEnum(Enum):
     ALERT_TIME = "Alert time"
     SELECTING_NOTIFICATION_OPTION = "Selecting notification option"
     FALLBACK = "Fallback"
@@ -31,3 +33,8 @@ class TelegramRepositorySchema(BaseModel):
     username: Optional[str] = None
     first_name: Optional[str] = None
     last_name: Optional[str] = None
+
+
+class TelegramPreferenceRepositorySchema(BaseModel):
+    telegram: TelegramRepositorySchema
+    preference: PreferencesRepositorySchema

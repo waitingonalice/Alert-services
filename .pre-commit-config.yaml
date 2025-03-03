@@ -33,7 +33,7 @@ repos:
             --fix,
             --exit-non-zero-on-fix,
             --ignore,
-            "TRY003,EM102,EM101,COM812,ISC001,FBT002,ARG001",
+            "TRY003,EM102,EM101,COM812,ISC001,FBT002,ARG001,E712",
           ]
       # Formatter
       - id: ruff-format

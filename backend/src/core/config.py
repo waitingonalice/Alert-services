@@ -57,6 +57,7 @@ class MinioSettings:
 
 class TelegramBotSettings:
     TELEGRAM_BOT_TOKEN: str = os.getenv("TELEGRAM_BOT_TOKEN", "")
+    TELEGRAM_ENDPOINT: str = os.getenv("TELEGRAM_ENDPOINT", "https://api.telegram.org")
 
 
 class Settings(

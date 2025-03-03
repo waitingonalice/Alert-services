@@ -7,6 +7,7 @@ from telegram.ext import (
     Application,
     ContextTypes,
 )
+from src.connectors.weather import WeatherConnector
 from src.core.depends import Depends
 from src.repository.telegram import TelegramRepository
 from src.repository.preferences import PreferencesRepository
@@ -22,9 +23,11 @@ class BaseConversationBuilder(ABC):
         application: Application,
         telegram_repo: TelegramRepository = Depends(TelegramRepository),
         preferences_repo: PreferencesRepository = Depends(PreferencesRepository),
+        weather_connector: WeatherConnector = Depends(WeatherConnector),
     ):
         self.telegram_repo = telegram_repo
         self.preferences_repo = preferences_repo
+        self.weather_connector = weather_connector
         self.application = application
         self.bot: Bot = self.application.bot
 

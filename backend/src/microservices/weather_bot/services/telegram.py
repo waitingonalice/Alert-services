@@ -1,5 +1,7 @@
+import asyncio
 import datetime
 import re
+from typing import List
 from telegram import (
     ReplyKeyboardMarkup,
     ReplyKeyboardRemove,
@@ -18,10 +20,16 @@ from telegram.ext import (
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.core.sql import async_transaction
 from src.core.regex import TWENTY_FOUR_HOUR_TIME_REGEX
+from src.core.formatting import toddmmYYYYHHMM
+from src.schemas.weather import (
+    TwentyFourHourSchema,
+    rain_forecast_list,
+)
 from src.schemas.telegram import (
+    TelegramPreferenceRepositorySchema,
     TelegramWeatherCommandsEnum,
     TelegramWeatherConfigEnum,
-    TelegramWeatherConfigStatesEnum,
+    TelegramWeatherConversationStatesEnum,
 )
 from ..utils.builder import BaseConversationBuilder
 
@@ -38,8 +46,10 @@ class WeatherConversationBuilder(BaseConversationBuilder):
     def __init__(self, application: Application):
         super().__init__(application=application)
         self.end_convo_keyboard = [
-            TelegramWeatherConfigStatesEnum.END_CONVERSATION.value
+            TelegramWeatherConversationStatesEnum.END_CONVERSATION.value
         ]
+        # init user_data with last_updated in memory to prevent multiple similar notifications
+        self.last_updated: datetime.datetime | None = None
 
     async def __set_commands(self):
         command_description_map = {
@@ -74,6 +84,9 @@ class WeatherConversationBuilder(BaseConversationBuilder):
         )
         return ConversationHandler.END
 
+    def __update_last_updated(self, dt: datetime.datetime):
+        self.last_updated = dt
+
     @async_transaction
     async def track_users(
         self, update: Update, _: ContextTypes.DEFAULT_TYPE, session: AsyncSession
@@ -101,8 +114,8 @@ class WeatherConversationBuilder(BaseConversationBuilder):
         if not user_preference:
             await self.preferences_repo.create_preferences(
                 user_id=str(update.message.from_user.id),
-                silence_start_time="07:00",
-                silence_end_time="22:00",
+                alert_start_time="07:00",
+                alert_end_time="22:00",
                 session=session,
             )
 
@@ -142,9 +155,10 @@ I will notify you when the skies are being unfriendly.
                 """
             )
             return
-        await self.telegram_repo.soft_delete_telegram_user(
-            str(update.message.from_user.id),
-            str(update.message.chat_id),
+        await self.telegram_repo.update_is_deleted_user(
+            user_id=str(update.message.from_user.id),
+            chat_id=str(update.message.chat_id),
+            is_deleted=True,
         )
         await update.message.reply_html(
             """
@@ -171,6 +185,7 @@ I will notify you when the skies are being unfriendly.
 
         await self.telegram_repo.update_is_deleted_user(
             user_id=user.user_id,
+            chat_id=user.chat_id,
             is_deleted=False,
         )
         await update.message.reply_text(
@@ -181,11 +196,22 @@ I will notify you when the skies are being unfriendly.
         )
 
     ########### Configure Notifications Conversation ###########
+
     async def configure_notifications(
         self, update: Update, _: ContextTypes.DEFAULT_TYPE
-    ) -> TelegramWeatherConfigStatesEnum:
+    ) -> TelegramWeatherConversationStatesEnum:
+        """
+        Entry point for configuring notification settings.
+
+        User has three options to choose from:
+        1. Start time of alerts
+        2. End time of alerts
+        3. End conversation
+
+        Proceeds to `SELECTING_NOTIFICATION_OPTION` state
+        """
         if not update.message or not update.message.from_user:
-            return TelegramWeatherConfigStatesEnum.FALLBACK
+            return TelegramWeatherConversationStatesEnum.FALLBACK
         text = """
         Please select the notification settings that you would like to configure.
         """
@@ -198,19 +224,23 @@ I will notify you when the skies are being unfriendly.
             text,
             reply_markup=ReplyKeyboardMarkup(keyboard),
         )
-        return TelegramWeatherConfigStatesEnum.SELECTING_NOTIFICATION_OPTION
+        return TelegramWeatherConversationStatesEnum.SELECTING_NOTIFICATION_OPTION
 
     async def selected_option(
         self, update: Update, context: ContextTypes.DEFAULT_TYPE
-    ) -> TelegramWeatherConfigStatesEnum | int:
+    ) -> TelegramWeatherConversationStatesEnum | int:
+        """
+        Processes the selected option from the user and replies accordinly.
+        Proceeds to `ALERT_TIME` state or ends the conversation.
+        """
         if (
             not update.message
             or not update.message.from_user
             or not update.message.text
         ):
-            return TelegramWeatherConfigStatesEnum.FALLBACK
+            return TelegramWeatherConversationStatesEnum.FALLBACK
         if (
-            TelegramWeatherConfigStatesEnum.END_CONVERSATION.value
+            TelegramWeatherConversationStatesEnum.END_CONVERSATION.value
             == update.message.text
         ):
             return await self.__end_conversation(update, context)
@@ -222,7 +252,7 @@ I will notify you when the skies are being unfriendly.
             await update.message.reply_text(
                 "What is this gibberish? Please select a valid option.",
             )
-            return TelegramWeatherConfigStatesEnum.SELECTING_NOTIFICATION_OPTION
+            return TelegramWeatherConversationStatesEnum.SELECTING_NOTIFICATION_OPTION
 
         selected_option_instruction_map = {
             TelegramWeatherConfigEnum.ALERT_START_TIME.value: """
@@ -246,20 +276,20 @@ I will notify you when the skies are being unfriendly.
             reply_markup=ReplyKeyboardMarkup(keyboard),
         )
 
-        return TelegramWeatherConfigStatesEnum.ALERT_TIME
+        return TelegramWeatherConversationStatesEnum.ALERT_TIME
 
     async def configure_alert_time(
         self, update: Update, context: ContextTypes.DEFAULT_TYPE
-    ) -> TelegramWeatherConfigStatesEnum | int:
+    ) -> TelegramWeatherConversationStatesEnum | int:
         if (
             not update.message
             or not update.message.from_user
             or not update.message.text
         ):
-            return TelegramWeatherConfigStatesEnum.FALLBACK
+            return TelegramWeatherConversationStatesEnum.FALLBACK
 
         if (
-            TelegramWeatherConfigStatesEnum.END_CONVERSATION.value
+            TelegramWeatherConversationStatesEnum.END_CONVERSATION.value
             == update.message.text
         ):
             return await self.__end_conversation(update, context)
@@ -274,13 +304,13 @@ I will notify you when the skies are being unfriendly.
             await update.message.reply_text(
                 "What is this gibberish? Please enter a valid 24-hour time format.",
             )
-            return TelegramWeatherConfigStatesEnum.ALERT_TIME
+            return TelegramWeatherConversationStatesEnum.ALERT_TIME
 
         user_preference = await self.preferences_repo.get_user_preference(
             str(update.message.from_user.id),
         )
         if not user_preference:
-            return TelegramWeatherConfigStatesEnum.FALLBACK
+            return TelegramWeatherConversationStatesEnum.FALLBACK
 
         params = {**user_preference.model_dump()}
         selected_option = str(
@@ -288,9 +318,9 @@ I will notify you when the skies are being unfriendly.
         )
 
         if TelegramWeatherConfigEnum.ALERT_START_TIME.value == selected_option:
-            params["silence_start_time"] = user_input
+            params["alert_start_time"] = user_input
         elif TelegramWeatherConfigEnum.ALERT_END_TIME.value == selected_option:
-            params["silence_end_time"] = user_input
+            params["alert_end_time"] = user_input
 
         await self.preferences_repo.update_preferences(
             **params,
@@ -305,7 +335,7 @@ I will notify you when the skies are being unfriendly.
 
     async def fallback_conversation(
         self, update: Update, context: ContextTypes.DEFAULT_TYPE
-    ) -> int:
+    ):
         return await self.__end_conversation(
             update,
             context,
@@ -315,22 +345,57 @@ I will notify you when the skies are being unfriendly.
     ########### End of Configure Notifications Conversation ###########
 
     def __get_weather_update(self):
-        """
-        Method to get weather updates from the weather API.
-        """
-        pass
+        now = datetime.datetime.now()
+        return self.weather_connector.get_24_hour_forecast_sg(now)
 
-    async def send_weather_update(self):
-        """
-        Method to send push notification to singular subscribed user on request.
-        """
-        pass
+    def __is_going_to_rain(self, forecast: TwentyFourHourSchema) -> bool:
+        return forecast.data.records[0].general.forecast.text in rain_forecast_list
 
-    async def send_weather_update_to_users(self):
+    # async def send_weather_update(self):
+    #     """
+    #     Method to send push notification to singular subscribed user on request.
+    #     """
+
+    #     pass
+
+    async def send_weather_update_to_users(self, context: ContextTypes.DEFAULT_TYPE):
         """
         Method to send push notification to all users subscribed to weather updates.
         """
-        pass
+        current_forecast = self.__get_weather_update()
+        if not current_forecast:
+            return
+        record = current_forecast.data.records[0]
+        valid_period = record.general.validPeriod
+        forecast = record.general.forecast.text
+
+        message = f"""
+        It seems like the weather is going to be unfriendly today ⛈️.
+        \nCurrent forecast: <strong>{forecast.value}</strong>
+        \nTemperatures: <strong>{record.general.temperature.low}°C - {record.general.temperature.high}°C</strong>
+        \nForecast validity: <strong>{toddmmYYYYHHMM(valid_period.start)}</strong> - <strong>{toddmmYYYYHHMM(valid_period.end)}</strong>
+Last updated: <i>{toddmmYYYYHHMM(record.updatedTimestamp)}</i>.
+        """
+
+        if (
+            self.__is_going_to_rain(current_forecast)
+            and self.last_updated != record.updatedTimestamp
+        ):
+            user_list: List[
+                TelegramPreferenceRepositorySchema
+            ] = await self.telegram_repo.list_subscribed_users_within_timeframe()
+            self.__update_last_updated(record.updatedTimestamp)
+
+            async def send_message(user: TelegramPreferenceRepositorySchema):
+                # TODO: add functionality for user to receive locational weather updates with button selection
+                await context.bot.send_message(
+                    chat_id=user.telegram.chat_id,
+                    text=message,
+                    parse_mode="HTML",
+                )
+
+            # Similar to nodejs Promise.all
+            await asyncio.gather(*[send_message(user) for user in user_list])
 
 
 class WeatherConversationDirector:
@@ -351,19 +416,19 @@ class WeatherConversationDirector:
                 )
             ],
             states={
-                TelegramWeatherConfigStatesEnum.SELECTING_NOTIFICATION_OPTION: [
+                TelegramWeatherConversationStatesEnum.SELECTING_NOTIFICATION_OPTION: [
                     MessageHandler(
                         filters.TEXT,
                         self.builder.selected_option,
                     ),
                 ],
-                TelegramWeatherConfigStatesEnum.ALERT_TIME: [
+                TelegramWeatherConversationStatesEnum.ALERT_TIME: [
                     MessageHandler(
                         filters.TEXT,
                         self.builder.configure_alert_time,
                     ),
                 ],
-                TelegramWeatherConfigStatesEnum.FALLBACK: [
+                TelegramWeatherConversationStatesEnum.FALLBACK: [
                     MessageHandler(
                         filters.TEXT,
                         self.builder.fallback_conversation,
@@ -379,11 +444,17 @@ class WeatherConversationDirector:
         )
 
     def construct_conversation(self):
+        job_queue = self.application.job_queue
+
+        if not job_queue:
+            return
+
         # run track_users in its own group to not interfere with the user handlers
         self.application.add_handler(
             TypeHandler(
                 Update,
                 self.builder.track_users,
+                block=False,
             ),
             group=-1,
         )
@@ -392,20 +463,29 @@ class WeatherConversationDirector:
             CommandHandler(
                 TelegramWeatherCommandsEnum.START.value,
                 self.builder.start_conversation,
+                block=False,
             )
         )
         self.application.add_handler(
             CommandHandler(
                 TelegramWeatherCommandsEnum.UNSUBSCRIBE.value,
                 self.builder.unsubscribe,
+                block=False,
             )
         )
         self.application.add_handler(
             CommandHandler(
                 TelegramWeatherCommandsEnum.SUBSCRIBE.value,
                 self.builder.subscribe,
+                block=False,
             )
         )
         self.application.add_handler(
             self.__config_conversation_handler(),
+        )
+
+        # check and send weather updates every hour to subscribed users
+        job_queue.run_repeating(
+            callback=self.builder.send_weather_update_to_users,
+            interval=datetime.timedelta(minutes=60),
         )
