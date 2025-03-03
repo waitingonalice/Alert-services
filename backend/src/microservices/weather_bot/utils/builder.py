@@ -1,10 +1,6 @@
 from abc import ABC, abstractmethod
-from telegram import (
-    Bot,
-    Update,
-)
+from telegram import Update
 from telegram.ext import (
-    Application,
     ContextTypes,
 )
 from src.connectors.weather import WeatherConnector
@@ -20,7 +16,6 @@ class BaseConversationBuilder(ABC):
 
     def __init__(
         self,
-        application: Application,
         telegram_repo: TelegramRepository = Depends(TelegramRepository),
         preferences_repo: PreferencesRepository = Depends(PreferencesRepository),
         weather_connector: WeatherConnector = Depends(WeatherConnector),
@@ -28,8 +23,6 @@ class BaseConversationBuilder(ABC):
         self.telegram_repo = telegram_repo
         self.preferences_repo = preferences_repo
         self.weather_connector = weather_connector
-        self.application = application
-        self.bot: Bot = self.application.bot
 
     @abstractmethod
     async def track_users(self, update: Update, _: ContextTypes.DEFAULT_TYPE):
