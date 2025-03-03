@@ -1,8 +1,8 @@
 """create telegram and preferences table
 
-Revision ID: ada1ff0d4ced
+Revision ID: 55325990a375
 Revises: 
-Create Date: 2025-02-28 23:38:11.288729
+Create Date: 2025-03-02 17:14:15.242783
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = 'ada1ff0d4ced'
+revision: str = '55325990a375'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -32,8 +32,8 @@ def upgrade() -> None:
     )
     op.create_table('preferences',
     sa.Column('id', sa.String(), nullable=False),
-    sa.Column('silence_start_time', sa.String(), server_default='00:00', nullable=False),
-    sa.Column('silence_end_time', sa.String(), server_default='07:00', nullable=False),
+    sa.Column('alert_start_time', sa.Time(), server_default='07:00', nullable=False),
+    sa.Column('alert_end_time', sa.Time(), server_default='22:00', nullable=False),
     sa.ForeignKeyConstraint(['id'], ['telegram.user_id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id')
     )

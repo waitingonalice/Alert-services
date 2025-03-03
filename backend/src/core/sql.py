@@ -1,5 +1,4 @@
 from functools import wraps
-from typing import Callable
 from sqlalchemy.ext.asyncio import (
     create_async_engine,
     async_sessionmaker,
@@ -37,7 +36,7 @@ async_session = async_sessionmaker(
 )
 
 
-def async_transaction(func: Callable):
+def async_transaction(func):
     @wraps(func)
     async def wrapper(*args, **kwargs):
         async with async_session() as session:

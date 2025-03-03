@@ -1,3 +1,4 @@
+import datetime
 from sqlalchemy import text, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -14,8 +15,8 @@ class PreferencesRepository:
     def __dao_to_dto(self, dao: PreferencesDAO):
         return PreferencesRepositorySchema(
             id=dao.id,
-            silence_start_time=dao.silence_start_time,
-            silence_end_time=dao.silence_end_time,
+            alert_start_time=dao.alert_start_time,
+            alert_end_time=dao.alert_end_time,
         )
 
     async def get_user_preference(
@@ -33,18 +34,18 @@ class PreferencesRepository:
         self,
         user_id: str,
         session: AsyncSession,
-        silence_start_time: str,
-        silence_end_time: str,
+        alert_start_time: datetime.time | str,
+        alert_end_time: datetime.time | str,
     ):
         preferences = PreferencesRepositorySchema(
             id=user_id,
-            silence_start_time=silence_start_time,
-            silence_end_time=silence_end_time,
+            alert_start_time=alert_start_time,
+            alert_end_time=alert_end_time,
         )
 
         statement = """
-            INSERT INTO preferences (id, silence_start_time, silence_end_time)
-            VALUES (:id, :silence_start_time, :silence_end_time)
+            INSERT INTO preferences (id, alert_start_time, alert_end_time)
+            VALUES (:id, :alert_start_time, :alert_end_time)
         """
 
         await session.execute(
@@ -56,19 +57,19 @@ class PreferencesRepository:
     async def update_preferences(
         self,
         id: str,
-        silence_start_time: str,
-        silence_end_time: str,
+        alert_start_time: datetime.time | str,
+        alert_end_time: datetime.time | str,
         session: AsyncSession,
     ):
         statement = """
             UPDATE preferences
-            SET silence_start_time = :silence_start_time, silence_end_time = :silence_end_time
+            SET alert_start_time = :alert_start_time, alert_end_time = :alert_end_time
             WHERE id = :id
         """
         params = PreferencesRepositorySchema(
             id=id,
-            silence_start_time=silence_start_time,
-            silence_end_time=silence_end_time,
+            alert_start_time=alert_start_time,
+            alert_end_time=alert_end_time,
         )
         await session.execute(
             text(statement),

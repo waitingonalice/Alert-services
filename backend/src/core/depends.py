@@ -1,7 +1,7 @@
 from typing import Any
 
 
-def Depends(func: Any):
+def Depends(func: Any) -> Any:
     """
     Non-native FastAPI Depends implementation.
     """

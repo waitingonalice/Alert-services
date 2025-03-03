@@ -20,7 +20,6 @@ class Telegram(SQLBase):
         DateTime(timezone=False),
         nullable=False,
         server_default=func.now(),
-        onupdate=func.now(),
     )
     # One-to-One relationship with Preferences, cascade delete
     preferences = relationship(

@@ -20,18 +20,18 @@ services:
   #     - postgres
   #     - redis
 
-  # bot_service:
-  #   container_name: bot_service
-  #   build:
-  #     context: .
-  #     dockerfile: ./backend/docker/local/bot/Dockerfile
-  #   volumes:
-  #     - ./backend:/app
-  #   env_file:
-  #     - ./backend/.env
-  #   depends_on:
-  #     - postgres
-  #     - redis
+  weather_bot:
+    container_name: weather_bot
+    build:
+      context: .
+      dockerfile: ./backend/docker/local/weather_bot/Dockerfile
+    volumes:
+      - ./backend:/app
+    env_file:
+      - ./backend/.env
+    depends_on:
+      - postgres
+      - redis
 
   postgres:
     container_name: alert_service_postgres
