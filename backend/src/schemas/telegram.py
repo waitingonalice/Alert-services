@@ -1,5 +1,5 @@
 import datetime
-from typing import Optional
+from typing import Callable, Optional
 from pydantic import BaseModel
 from enum import Enum
 
@@ -38,3 +38,9 @@ class TelegramRepositorySchema(BaseModel):
 class TelegramPreferenceRepositorySchema(BaseModel):
     telegram: TelegramRepositorySchema
     preference: PreferencesRepositorySchema
+
+
+class TelegramAddJobSchema(BaseModel):
+    callback: Callable
+    interval: float | datetime.timedelta
+    first: Optional[float | datetime.timedelta] = None

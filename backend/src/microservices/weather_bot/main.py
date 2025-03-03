@@ -1,52 +1,48 @@
 import os
 import signal
-import time
 from telegram import Update
 from telegram.ext import (
     Application,
 )
 
-from .services.telegram import (
-    WeatherConversationBuilder,
+from src.core.config import settings
+from .services.weather import (
+    WeatherService,
     WeatherConversationDirector,
 )
-from src.core.config import settings
+from .services.telegram import TelegramService, TelegramServiceDirector
 
 application = Application.builder().token(settings.TELEGRAM_BOT_TOKEN).build()
 count = 0
 max_retry_count = 5
 
-# Instantiate Telegram weather bot conversation
-weather_conversation_builder = WeatherConversationBuilder(application=application)
-weather_conversation_director = WeatherConversationDirector(
-    builder=weather_conversation_builder,
+weather_convo = WeatherService()
+weather_convo_director = WeatherConversationDirector(
     application=application,
+    service=weather_convo,
 )
-weather_conversation_director.construct_conversation()
+telegram_service = TelegramService()
+telegram_service_director = TelegramServiceDirector(
+    application=application,
+    service=telegram_service,
+    weather_service=weather_convo,
+)
 
-# Instantiate push notification for weather updates from bot
 
-
-def main(count: int):
+def main():
     try:
         # TODO: Redis init and integration for caching user data
-        # Start the bot + jobs here
-        print("Bot Service - Bot is running...")
+        weather_convo_director.construct()
+        telegram_service_director.construct()
+        print("Weather Bot Service - Running")
         application.run_polling(
             allowed_updates=Update.ALL_TYPES,
             drop_pending_updates=True,
         )
-
     except Exception as e:
-        if count == max_retry_count:
-            print("Bot Service - Failed to initialise application. Exiting...")
-            os.kill(1, signal.SIGTERM)
         print(f"Bot Service - Error: {e}")
-        print(f"Bot Service - Retry count: {count}. Retrying in 10 seconds...")
-        time.sleep(10)
-        if count < max_retry_count:
-            main(count + 1)
+        os.kill(1, signal.SIGTERM)
 
 
 if __name__ == "__main__":
-    main(count)
+    main()
