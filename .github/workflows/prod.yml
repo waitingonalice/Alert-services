@@ -84,7 +84,7 @@ jobs:
           context: ./backend/docker/$APP_NAME
           platforms: linux/amd64,linux/arm64
           push: true
-          tags: ghcr.io/waitingonalice/$APP_NAME:latest
+          tags: ghcr.io/waitingonalice/${{ env.APP_NAME }}:latest
           build-args: |
-            APP_NAME=$APP_NAME
-            BUILD_ENV=$BUILD_ENV
+            APP_NAME=/${{ env.APP_NAME }}
+            BUILD_ENV=/${{ env.BUILD_ENV }}
