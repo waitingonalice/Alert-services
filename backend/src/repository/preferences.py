@@ -53,6 +53,7 @@ class PreferencesRepository:
             preferences.model_dump(),
         )
 
+    # TODO: Check if start time is same as end time
     @async_transaction
     async def update_preferences(
         self,

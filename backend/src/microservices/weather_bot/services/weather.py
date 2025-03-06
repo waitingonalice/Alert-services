@@ -35,6 +35,7 @@ from ..utils.builder import BaseConversationBuilder
 from ..utils.director import BaseDirector
 
 
+# TODO: Exception handling
 class WeatherService(BaseConversationBuilder):
     """
     Important links for Telegram API documentation:
@@ -351,7 +352,7 @@ I will notify you when the skies are being unfriendly.
     def __is_going_to_rain(self, forecast: TwentyFourHourSchema) -> bool:
         return forecast.data.records[0].general.forecast.text in rain_forecast_list
 
-    def __update_last_updated(self, dt: datetime.datetime):
+    def __set_last_updated(self, dt: datetime.datetime):
         self.last_updated = dt
 
     # async def send_weather_update(self):
@@ -387,7 +388,7 @@ Last updated: <i>{toddmmYYYYHHMM(record.updatedTimestamp)}</i>.
             user_list: List[
                 TelegramPreferenceRepositorySchema
             ] = await self.telegram_repo.list_subscribed_users_within_timeframe()
-            self.__update_last_updated(record.updatedTimestamp)
+            self.__set_last_updated(record.updatedTimestamp)
 
             async def send_message(user: TelegramPreferenceRepositorySchema):
                 # TODO: add functionality for user to receive locational weather updates with button selection
@@ -397,7 +398,9 @@ Last updated: <i>{toddmmYYYYHHMM(record.updatedTimestamp)}</i>.
                     parse_mode="HTML",
                 )
 
-            # Similar to nodejs Promise.all
+            if len(user_list) == 0:
+                return
+            # Similar to nodejs Promise.all, must check length, if len == 0, it will forever await.
             await asyncio.gather(*[send_message(user) for user in user_list])
 
 

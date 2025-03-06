@@ -6,9 +6,6 @@ load_dotenv()
 
 class AppSettings:
     ENV: str | None = os.getenv("BUILD_ENV")
-    APP_NAME: str = os.getenv("APP_NAME", "Alert Services API")
-    CRON_APP_NAME: str = os.getenv("CRON_APP_NAME", "Alert Services Cron")
-    FRONTEND_URL: str = os.getenv("FRONTEND_URL", "http://localhost:5173")
     OPEN_GOV_ENDPOINT: str = os.getenv(
         "OPEN_GOV_ENDPOINT", "https://api-open.data.gov.sg"
     )

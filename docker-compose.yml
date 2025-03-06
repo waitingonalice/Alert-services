@@ -24,7 +24,10 @@ services:
     container_name: weather_bot
     build:
       context: .
-      dockerfile: ./backend/docker/local/weather_bot/Dockerfile
+      dockerfile: ./backend/docker/weather_bot/Dockerfile
+      args:
+        - APP_NAME=weather_bot
+        - BUILD_ENV=local
     volumes:
       - ./backend:/app
     env_file:

@@ -1,6 +1,9 @@
 import datetime
 from typing import List
-from sqlalchemy import text, select, and_
+
+# from sqlalchemy import text, select, and_
+from sqlalchemy import text, select
+
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.sql import async_transaction, async_session
@@ -58,7 +61,7 @@ class TelegramRepository:
         session: AsyncSession,
     ) -> List[TelegramPreferenceRepositorySchema]:
         # transaction is required here to explicity execute join statement
-        now = datetime.datetime.now().time()
+        # now = datetime.datetime.now().time()
         data = await session.execute(
             select(
                 TelegramDAO,
@@ -70,11 +73,13 @@ class TelegramRepository:
                 onclause=TelegramDAO.user_id == PreferencesDAO.id,
             )
             .where(
-                and_(
-                    TelegramDAO.is_deleted == False,  # noqa: E712
-                    now >= PreferencesDAO.alert_start_time,
-                    now <= PreferencesDAO.alert_end_time,
-                )
+                # TODO: Uncomment this when user timezone is supported.
+                TelegramDAO.is_deleted == False,  # noqa: E712
+                # and_(
+                #     TelegramDAO.is_deleted == False,  # noqa: E712
+                #     now >= PreferencesDAO.alert_start_time,
+                #     now <= PreferencesDAO.alert_end_time,
+                # )
             )
         )
         return [
