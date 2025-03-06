@@ -81,7 +81,8 @@ jobs:
       - name: "Build, Tag, Push latest"
         uses: docker/build-push-action@v5
         with:
-          file: ./backend/docker/${{ env.APP_NAME }}
+          context: ./backend
+          file: ./backend/docker/${{ env.APP_NAME }}/Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
           tags: ghcr.io/waitingonalice/${{ env.APP_NAME }}:latest
