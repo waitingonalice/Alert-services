@@ -10,7 +10,10 @@ from .services.weather import (
     WeatherService,
     WeatherConversationDirector,
 )
-from .services.telegram import TelegramService, TelegramServiceDirector
+from .services.telegram import (
+    TelegramService,
+    TelegramServiceDirector,
+)
 
 application = Application.builder().token(settings.TELEGRAM_BOT_TOKEN).build()
 count = 0
@@ -40,7 +43,7 @@ def main():
             drop_pending_updates=True,
         )
     except Exception as e:
-        print(f"Bot Service - Error: {e}")
+        print(f"Weather Bot Service - Error: {e}")
         os.kill(1, signal.SIGTERM)
 
 
