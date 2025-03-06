@@ -32,8 +32,8 @@ jobs:
 
       - name: Setup environment variables
         run: |
-          chmod +x ./scripts/setup-prod.sh
-          ./scripts/setup-prod.sh
+          chmod +x ./scripts/setup-backend
+          ./scripts/setup-backend
         env:
           OPEN_GOV_ENDPOINT: ${{ secrets.OPEN_GOV_ENDPOINT }}
 
