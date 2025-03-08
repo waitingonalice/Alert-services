@@ -20,11 +20,12 @@ count = 0
 max_retry_count = 5
 
 weather_convo = WeatherService()
+telegram_service = TelegramService()
+
 weather_convo_director = WeatherConversationDirector(
     application=application,
     service=weather_convo,
 )
-telegram_service = TelegramService()
 telegram_service_director = TelegramServiceDirector(
     application=application,
     service=telegram_service,
@@ -37,10 +38,10 @@ def main():
         # TODO: Redis init and integration for caching user data
         weather_convo_director.construct()
         telegram_service_director.construct()
-        print("Weather Bot Service - Running")
         application.run_polling(
             allowed_updates=Update.ALL_TYPES,
             drop_pending_updates=True,
+            poll_interval=0.5,
         )
     except Exception as e:
         print(f"Weather Bot Service - Error: {e}")

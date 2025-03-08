@@ -46,7 +46,7 @@ def async_transaction(func):
                     await session.commit()
                     return called
                 except SQLAlchemyError as e:
-                    session.rollback()
+                    await session.rollback()
                     raise e
 
     return wrapper
