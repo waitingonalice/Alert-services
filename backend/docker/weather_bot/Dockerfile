@@ -10,10 +10,10 @@ WORKDIR ${APP_DIR}
 
 # Install apt packages
 RUN apt-get update && apt-get install --no-install-recommends -y \
-  # dependencies for building Python packages
-  build-essential \
-  # psycopg dependencies
-  libpq-dev
+    # dependencies for building Python packages
+    build-essential \
+    # psycopg dependencies
+    libpq-dev
 
 FROM base as build-stage
 

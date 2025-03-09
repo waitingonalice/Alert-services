@@ -1,10 +1,13 @@
 #!/bin/bash
+WORKDIR=/app
 
-if [ -z "${POSTGRES_USER}" ]; then
-    base_postgres_image_default_user='postgres'
-    export POSTGRES_USER="${base_postgres_image_default_user}"
+if [ "${BUILD_ENV}" == "prod" ]; then
+    echo "Building in production mode"
+    # mount environment variables from within the container if in production mode
+    source $WORKDIR/.env
+else
+    echo "Building in development mode"
 fi
-export DATABASE_URL="postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}"
 
 python << END
 import sys
