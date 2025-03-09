@@ -14,11 +14,7 @@ class AppSettings:
 class PostgresSettings:
     POSTGRES_USER: str = os.getenv("POSTGRES_USER", "postgres")
     POSTGRES_PASSWORD: str = os.getenv("POSTGRES_PASSWORD", "")
-    POSTGRES_HOST: str = (
-        os.getenv("POSTGRES_HOST", "localhost")
-        if os.getenv("BUILD_ENV")
-        else "localhost"  # For database migration outside of docker
-    )
+    POSTGRES_HOST: str = os.getenv("POSTGRES_HOST", "localhost")
     POSTGRES_PORT: int = int(os.getenv("POSTGRES_PORT", 5432))
     POSTGRES_DB: str = os.getenv("POSTGRES_DB", "alerts")
     POSTGRES_SYNC_PREFIX: str = os.getenv("POSTGRES_SYNC_PREFIX", "postgresql://")
